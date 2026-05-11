@@ -8,7 +8,7 @@ const firebaseConfig = {
   apiKey:            'AIzaSyB6jEek__xljHlruC22VX3Mo0oQsS9RGPE',
   authDomain:        'kings-oak-demo.firebaseapp.com',
   projectId:         'kings-oak-demo',
-  storageBucket:     'kings-oak-demo.firebasestorage.app',
+  storageBucket: 'kings-oak-demo.appspot.com',
   messagingSenderId: '368241787491',
   appId:             '1:368241787491:web:482a43ad49bf29e1636e56',
 };
