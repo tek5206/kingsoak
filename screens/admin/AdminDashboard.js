@@ -85,6 +85,7 @@ export default function AdminDashboard({ navigation, route }) {
         <View>
           <Text style={styles.headerSub}>Welcome back,</Text>
           <Text style={styles.headerName}>{userName || 'Admin'}</Text>
+          <Text style={styles.headerRole}>Manager</Text>
         </View>
         <TouchableOpacity style={styles.logoutBtn} onPress={() => signOut(auth)}>
           <Text style={styles.logoutText}>Logout</Text>
@@ -228,7 +229,8 @@ const styles = StyleSheet.create({
   headerSub:  { fontSize: 12, color: Colors.accentLight },
   headerName: { fontSize: 20, fontWeight: '800', color: Colors.white },
   logoutBtn:  { backgroundColor: Colors.primaryLight, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8 },
-  logoutText: { color: Colors.accentLight, fontSize: 13, fontWeight: '600' },
+  logoutText:  { color: Colors.accentLight, fontSize: 13, fontWeight: '600' },
+  headerRole:  { fontSize: 11, color: Colors.accent, fontWeight: '600', marginTop: 2, letterSpacing: 0.5 },
 
   statsRow: {
     flexDirection: 'row', backgroundColor: Colors.surface,
