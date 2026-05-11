@@ -57,7 +57,7 @@ export default function EngineerDashboard({ navigation, route }) {
       >
         {isRevision && (
           <View style={styles.revisionBanner}>
-            <Text style={styles.revisionBannerText}>⚠️ Revision Requested</Text>
+            <Text style={styles.revisionBannerText}>Revision Requested</Text>
           </View>
         )}
 

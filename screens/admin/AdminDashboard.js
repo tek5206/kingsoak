@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity,
   StyleSheet, SafeAreaView, ActivityIndicator,
-  RefreshControl, TextInput,
+  RefreshControl, TextInput, ScrollView,
 } from 'react-native';
 import {
   collection, query, orderBy, onSnapshot,
@@ -127,24 +127,26 @@ export default function AdminDashboard({ navigation, route }) {
       </View>
 
       {/* Filter tabs */}
-      <FlatList
+      <ScrollView
         horizontal
-        data={FILTERS}
-        keyExtractor={f => f}
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.filterList}
-        renderItem={({ item: f }) => (
+      >
+        {FILTERS.map(f => (
           <TouchableOpacity
+            key={f}
             style={[styles.filterTab, filter === f && styles.filterTabActive]}
             onPress={() => setFilter(f)}
           >
             <Text style={[styles.filterText, filter === f && styles.filterTextActive]}>
-              {f === 'all' ? 'All' : StatusConfig[f]?.label || f}{' '}
-              <Text style={styles.filterCount}>({counts[f]})</Text>
+              {f === 'all' ? 'All' : StatusConfig[f]?.label || f}
+            </Text>
+            <Text style={[styles.filterCount, filter === f && styles.filterCountActive]}>
+              {counts[f]}
             </Text>
           </TouchableOpacity>
-        )}
-      />
+        ))}
+      </ScrollView>
 
       {/* Job list */}
       {loading ? (
@@ -210,17 +212,19 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: Colors.border,
   },
 
-  filterList: { paddingHorizontal: 12, paddingVertical: 8, backgroundColor: Colors.surface },
+  filterList: { paddingHorizontal: 12, paddingVertical: 10, backgroundColor: Colors.surface, gap: 8 },
   filterTab: {
-    paddingHorizontal: 14, paddingVertical: 7,
-    borderRadius: 20, marginRight: 8,
+    paddingHorizontal: 14, paddingVertical: 8,
+    borderRadius: 20,
     backgroundColor: Colors.background,
     borderWidth: 1, borderColor: Colors.border,
+    alignItems: 'center', flexDirection: 'row', gap: 5,
   },
-  filterTabActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },
-  filterText:      { fontSize: 12, color: Colors.textSecondary, fontWeight: '600' },
-  filterTextActive:{ color: Colors.white },
-  filterCount:     { fontWeight: '400' },
+  filterTabActive:  { backgroundColor: Colors.primary, borderColor: Colors.primary },
+  filterText:       { fontSize: 12, color: Colors.textSecondary, fontWeight: '600' },
+  filterTextActive: { color: Colors.white },
+  filterCount:      { fontSize: 11, color: Colors.textMuted, fontWeight: '700', backgroundColor: Colors.divider, paddingHorizontal: 6, paddingVertical: 1, borderRadius: 10 },
+  filterCountActive:{ color: Colors.primary, backgroundColor: 'rgba(255,255,255,0.25)' },
 
   listContent: { padding: 14, paddingBottom: 100 },
 
