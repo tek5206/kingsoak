@@ -114,7 +114,7 @@ export default function EngineerJobDetail({ navigation, route }) {
 
   const handleSubmit = async () => {
     if (photos.length === 0) { Alert.alert('Photos required', 'Please take at least one photo.'); return; }
-    Alert.alert('Submit for Approval', 'Submit this job for admin review?', [
+    Alert.alert('Submit for Approval', 'Submit this job for manager review?', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Submit',
@@ -129,7 +129,7 @@ export default function EngineerJobDetail({ navigation, route }) {
               submittedAt: serverTimestamp(), updatedAt: serverTimestamp(),
             });
             setPhotos([]);
-            Alert.alert('Submitted!', 'Your work has been sent for admin review.');
+            Alert.alert('Submitted!', 'Your work has been sent for manager review.');
           } catch (e) {
             console.error(e);
             Alert.alert('Error', `Failed to submit: ${e.message}`);
@@ -167,7 +167,7 @@ export default function EngineerJobDetail({ navigation, route }) {
 
         {isRevision && (
           <View style={styles.revisionCard}>
-            <Text style={styles.revisionTitle}>⚠️ Admin requested a revision</Text>
+            <Text style={styles.revisionTitle}>Manager requested a revision</Text>
             <Text style={styles.revisionBody}>Please add more photos or update your notes, then resubmit.</Text>
           </View>
         )}
@@ -175,7 +175,7 @@ export default function EngineerJobDetail({ navigation, route }) {
         <View style={styles.card}>
           <Text style={styles.jobTitle}>{job.title}</Text>
           <View style={[styles.catBadge, { backgroundColor: cc.bg }]}>
-            <Text style={styles.catIcon}>{cc.icon}</Text>
+     
             <Text style={[styles.catText, { color: cc.color }]}>{job.category}</Text>
           </View>
           {job.description ? <Text style={styles.description}>{job.description}</Text> : null}
@@ -216,7 +216,7 @@ export default function EngineerJobDetail({ navigation, route }) {
             <Text style={[styles.sectionTitle, { marginTop: 16 }]}>Notes (optional)</Text>
             <TextInput
               style={styles.noteInput} value={note} onChangeText={setNote}
-              placeholder="Any notes for the admin..." placeholderTextColor={Colors.textMuted}
+              placeholder="Any notes for the manager..." placeholderTextColor={Colors.textMuted}
               multiline numberOfLines={3}
             />
           </View>
@@ -229,7 +229,7 @@ export default function EngineerJobDetail({ navigation, route }) {
             <>
               {isPending && (
                 <TouchableOpacity style={styles.startBtn} onPress={handleStart}>
-                  <Text style={styles.ctaText}>▶ Start Job</Text>
+                  <Text style={styles.ctaText}> Start Job</Text>
                 </TouchableOpacity>
               )}
               {canWork && (
@@ -237,17 +237,17 @@ export default function EngineerJobDetail({ navigation, route }) {
                   style={[styles.submitBtn, photos.length === 0 && styles.btnDisabled]}
                   onPress={handleSubmit} disabled={photos.length === 0}
                 >
-                  <Text style={styles.ctaText}>📤 Submit for Approval ({photos.length} photo{photos.length !== 1 ? 's' : ''})</Text>
+                  <Text style={styles.ctaText}>Submit for Approval ({photos.length} photo{photos.length !== 1 ? 's' : ''})</Text>
                 </TouchableOpacity>
               )}
               {isSubmitted && (
                 <View style={styles.submittedBox}>
-                  <Text style={styles.submittedText}>✅ Submitted — waiting for admin review</Text>
+                  <Text style={styles.submittedText}>✅ Submitted — waiting for manager review</Text>
                 </View>
               )}
               {isDone && (
                 <View style={[styles.submittedBox, { backgroundColor: Colors.completedBg }]}>
-                  <Text style={[styles.submittedText, { color: Colors.completed }]}>🎉 Job Completed & Approved!</Text>
+                  <Text style={[styles.submittedText, { color: Colors.completed }]}>Job Completed & Approved!</Text>
                 </View>
               )}
             </>

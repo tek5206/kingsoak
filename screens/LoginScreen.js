@@ -49,7 +49,7 @@ export default function LoginScreen() {
           />
           <Text style={styles.brandName}>KINGS OAK</Text>
           <View style={styles.brandLine} />
-          <Text style={styles.brandSub}>FIELD SERVICE MANAGEMENT</Text>
+          <Text style={styles.brandSub}>PROPERTY SOLUTIONS</Text>
         </View>
 
         {/* Card */}
@@ -100,7 +100,7 @@ export default function LoginScreen() {
           >
             {loading
               ? <ActivityIndicator color="#0B1D2E" size="small" />
-              : <Text style={styles.btnText}>Sign In</Text>
+              : <Text style={styles.btnText}>Log In</Text>
             }
           </TouchableOpacity>
         </View>

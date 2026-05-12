@@ -63,7 +63,6 @@ export default function EngineerDashboard({ navigation, route }) {
 
         <View style={styles.cardTop}>
           <View style={[styles.catBadge, { backgroundColor: cc.bg }]}>
-            <Text style={styles.catIcon}>{cc.icon}</Text>
             <Text style={[styles.catText, { color: cc.color }]}>{item.category}</Text>
           </View>
           <View style={[styles.statusBadge, { backgroundColor: sc.bg, borderColor: sc.border }]}>
@@ -76,7 +75,7 @@ export default function EngineerDashboard({ navigation, route }) {
 
         <View style={styles.cardBottom}>
           <Text style={styles.cardMeta}>
-            {item.scheduledDate ? `📅 ${item.scheduledDate}` : '📅 Not scheduled'}
+            {item.scheduledDate ? ` ${item.scheduledDate}` : '📅 Not scheduled'}
           </Text>
           <Text style={styles.viewMore}>View →</Text>
         </View>

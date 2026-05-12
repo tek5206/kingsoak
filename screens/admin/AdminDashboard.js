@@ -59,7 +59,6 @@ export default function AdminDashboard({ navigation, route }) {
       >
         <View style={styles.jobCardTop}>
           <View style={[styles.catBadge, { backgroundColor: cc.bg }]}>
-            <Text style={styles.catIcon}>{cc.icon}</Text>
             <Text style={[styles.catText, { color: cc.color }]}>{item.category}</Text>
           </View>
           <View style={[styles.statusBadge, { backgroundColor: sc.bg, borderColor: sc.border }]}>
@@ -71,7 +70,7 @@ export default function AdminDashboard({ navigation, route }) {
         <View style={styles.jobCardBottom}>
           <Text style={styles.jobMeta}>👤 {item.assignedToName || 'Unassigned'}</Text>
           <Text style={styles.jobMeta}>
-            {item.scheduledDate ? `📅 ${item.scheduledDate}` : '📅 Not scheduled'}
+            {item.scheduledDate ? ` ${item.scheduledDate}` : '📅 Not scheduled'}
           </Text>
         </View>
       </TouchableOpacity>
