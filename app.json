@@ -11,7 +11,9 @@
       "resizeMode": "contain",
       "backgroundColor": "#0D2137"
     },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.kingsoak.app"
@@ -33,7 +35,20 @@
           "photosPermission": "Kings Oak needs access to your photos.",
           "cameraPermission": "Kings Oak needs access to your camera."
         }
-      ]
-    ]
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#0D2137"
+        }
+      ],
+      "@react-native-community/datetimepicker"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "0e5b349a-e86b-4626-9b4f-7ca0a275d32e"
+      }
+    }
   }
 }

@@ -13,11 +13,13 @@ import CreateJobScreen   from './screens/admin/CreateJobScreen';
 import AdminJobDetail    from './screens/admin/AdminJobDetail';
 import EngineerDashboard from './screens/engineer/EngineerDashboard';
 import EngineerJobDetail from './screens/engineer/EngineerJobDetail';
+import usePushNotifications from './hooks/usePushNotifications';
 
 const Stack = createStackNavigator();
 const NO_HEADER = { headerShown: false };
 
 export default function App() {
+  usePushNotifications(); 
   const [user, setUser]         = useState(null);
   const [userInfo, setUserInfo] = useState(null);
   const [loading, setLoading]   = useState(true);
