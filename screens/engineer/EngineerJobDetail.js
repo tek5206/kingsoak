@@ -2,9 +2,10 @@ import * as ImageManipulator from 'expo-image-manipulator';
 import React, { useEffect, useState } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity,
-  StyleSheet, SafeAreaView, ActivityIndicator,
+  StyleSheet, ActivityIndicator,
   Alert, Image, TextInput,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { doc, onSnapshot, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '../../firebase';

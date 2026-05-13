@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, ScrollView,
-  StyleSheet, SafeAreaView, ActivityIndicator, Alert, Platform, Modal,
+  StyleSheet, ActivityIndicator, Alert, Platform, Modal,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { collection, addDoc, getDocs, serverTimestamp, query, where } from 'firebase/firestore';
 import { db } from '../../firebase';

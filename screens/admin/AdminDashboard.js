@@ -1,9 +1,10 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity,
-  StyleSheet, SafeAreaView, ActivityIndicator,
+  StyleSheet, ActivityIndicator,
   RefreshControl, TextInput, Modal,
 } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
 import { signOut } from 'firebase/auth';
 import { auth, db } from '../../firebase';
@@ -19,6 +20,7 @@ export default function AdminDashboard({ navigation, route }) {
   const [filter, setFilter]         = useState('all');
   const [search, setSearch]         = useState('');
   const [showFilter, setShowFilter] = useState(false);
+  const insets = useSafeAreaInsets();
 
   useEffect(() => {
     const q = query(collection(db, 'jobs'), orderBy('createdAt', 'desc'));
@@ -78,143 +80,141 @@ export default function AdminDashboard({ navigation, route }) {
   };
 
   return (
-    <SafeAreaView style={styles.safe}>
-      {/* Header */}
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.headerSub}>Welcome back,</Text>
-          <Text style={styles.headerName}>{userName || 'Admin'}</Text>
-          <Text style={styles.headerRole}>Manager</Text>
-        </View>
-        <TouchableOpacity style={styles.logoutBtn} onPress={() => signOut(auth)}>
-          <Text style={styles.logoutText}>Logout</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Stats row */}
-      <View style={styles.statsRow}>
-        <View style={styles.statBox}>
-          <Text style={styles.statNum}>{counts.all}</Text>
-          <Text style={styles.statLabel}>Total</Text>
-        </View>
-        <View style={styles.statBox}>
-          <Text style={[styles.statNum, { color: Colors.pending }]}>{counts.pending}</Text>
-          <Text style={styles.statLabel}>Pending</Text>
-        </View>
-        <View style={styles.statBox}>
-          <Text style={[styles.statNum, { color: Colors.inProgress }]}>{counts.in_progress}</Text>
-          <Text style={styles.statLabel}>Active</Text>
-        </View>
-        <View style={styles.statBox}>
-          <Text style={[styles.statNum, { color: Colors.completed }]}>{counts.completed}</Text>
-          <Text style={styles.statLabel}>Done</Text>
-        </View>
-      </View>
-
-      {/* Search + Filter row */}
-      <View style={styles.searchRow}>
-        <TextInput
-          style={styles.searchInput}
-          value={search}
-          onChangeText={setSearch}
-          placeholder="Search jobs or engineers..."
-          placeholderTextColor={Colors.textMuted}
-        />
-        <TouchableOpacity
-          style={[styles.filterBtn, currentSc && { backgroundColor: currentSc.bg, borderColor: currentSc.border }]}
-          onPress={() => setShowFilter(true)}
-        >
-          <Text style={[styles.filterBtnText, currentSc && { color: currentSc.color }]}>
-            {currentLabel}
-          </Text>
-          <Text style={[styles.filterBtnCount, currentSc && { color: currentSc.color }]}>
-            {counts[filter]}
-          </Text>
-          <Text style={[styles.filterArrow, currentSc && { color: currentSc.color }]}>▼</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Filter Dropdown Modal */}
-      <Modal
-        visible={showFilter}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowFilter(false)}
-      >
-        <TouchableOpacity
-          style={styles.modalOverlay}
-          activeOpacity={1}
-          onPress={() => setShowFilter(false)}
-        >
-          <View style={styles.modalBox}>
-            <Text style={styles.modalTitle}>Filter by Status</Text>
-            {FILTERS.map(f => {
-              const sc     = f !== 'all' ? StatusConfig[f] : null;
-              const active = filter === f;
-              const label  = f === 'all' ? 'All Jobs' : StatusConfig[f]?.label || f;
-              return (
-                <TouchableOpacity
-                  key={f}
-                  style={[
-                    styles.modalRow,
-                    active && styles.modalRowActive,
-                    sc && active && { borderColor: sc.border, backgroundColor: sc.bg },
-                  ]}
-                  onPress={() => { setFilter(f); setShowFilter(false); }}
-                >
-                  <View style={styles.modalRowLeft}>
-                    {sc && (
-                      <View style={[styles.modalDot, { backgroundColor: sc.color }]} />
-                    )}
-                    {!sc && (
-                      <View style={[styles.modalDot, { backgroundColor: Colors.textMuted }]} />
-                    )}
-                    <Text style={[styles.modalLabel, sc && active && { color: sc.color }]}>
-                      {label}
-                    </Text>
-                  </View>
-                  <View style={styles.modalRowRight}>
-                    <Text style={[styles.modalCount, sc && active && { color: sc.color }]}>
-                      {counts[f]}
-                    </Text>
-                    {active && <Text style={[styles.modalCheck, sc && { color: sc.color }]}>✓</Text>}
-                  </View>
-                </TouchableOpacity>
-              );
-            })}
+    <View style={{ flex: 1, backgroundColor: Colors.background }}>
+      <SafeAreaView style={styles.safe}>
+        {/* Header */}
+        <View style={styles.header}>
+          <View>
+            <Text style={styles.headerSub}>Welcome back,</Text>
+            <Text style={styles.headerName}>{userName || 'Admin'}</Text>
+            <Text style={styles.headerRole}>Manager</Text>
           </View>
-        </TouchableOpacity>
-      </Modal>
+          <TouchableOpacity style={styles.logoutBtn} onPress={() => signOut(auth)}>
+            <Text style={styles.logoutText}>Logout</Text>
+          </TouchableOpacity>
+        </View>
 
-      {/* Job list */}
-      {loading ? (
-        <ActivityIndicator style={{ flex: 1 }} color={Colors.primary} size="large" />
-      ) : (
-        <FlatList
-          data={filteredJobs}
-          keyExtractor={j => j.id}
-          renderItem={renderJob}
-          contentContainerStyle={styles.listContent}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} />
-          }
-          ListEmptyComponent={
-            <View style={styles.empty}>
-              <Text style={styles.emptyText}>No jobs found</Text>
+        {/* Stats row */}
+        <View style={styles.statsRow}>
+          <View style={styles.statBox}>
+            <Text style={styles.statNum}>{counts.all}</Text>
+            <Text style={styles.statLabel}>Total</Text>
+          </View>
+          <View style={styles.statBox}>
+            <Text style={[styles.statNum, { color: Colors.pending }]}>{counts.pending}</Text>
+            <Text style={styles.statLabel}>Pending</Text>
+          </View>
+          <View style={styles.statBox}>
+            <Text style={[styles.statNum, { color: Colors.inProgress }]}>{counts.in_progress}</Text>
+            <Text style={styles.statLabel}>Active</Text>
+          </View>
+          <View style={styles.statBox}>
+            <Text style={[styles.statNum, { color: Colors.completed }]}>{counts.completed}</Text>
+            <Text style={styles.statLabel}>Done</Text>
+          </View>
+        </View>
+
+        {/* Search + Filter row */}
+        <View style={styles.searchRow}>
+          <TextInput
+            style={styles.searchInput}
+            value={search}
+            onChangeText={setSearch}
+            placeholder="Search jobs or engineers..."
+            placeholderTextColor={Colors.textMuted}
+          />
+          <TouchableOpacity
+            style={[styles.filterBtn, currentSc && { backgroundColor: currentSc.bg, borderColor: currentSc.border }]}
+            onPress={() => setShowFilter(true)}
+          >
+            <Text style={[styles.filterBtnText, currentSc && { color: currentSc.color }]}>
+              {currentLabel}
+            </Text>
+            <Text style={[styles.filterBtnCount, currentSc && { color: currentSc.color }]}>
+              {counts[filter]}
+            </Text>
+            <Text style={[styles.filterArrow, currentSc && { color: currentSc.color }]}>▼</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Filter Dropdown Modal */}
+        <Modal
+          visible={showFilter}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setShowFilter(false)}
+        >
+          <TouchableOpacity
+            style={styles.modalOverlay}
+            activeOpacity={1}
+            onPress={() => setShowFilter(false)}
+          >
+            <View style={styles.modalBox}>
+              <Text style={styles.modalTitle}>Filter by Status</Text>
+              {FILTERS.map(f => {
+                const sc     = f !== 'all' ? StatusConfig[f] : null;
+                const active = filter === f;
+                const label  = f === 'all' ? 'All Jobs' : StatusConfig[f]?.label || f;
+                return (
+                  <TouchableOpacity
+                    key={f}
+                    style={[
+                      styles.modalRow,
+                      active && styles.modalRowActive,
+                      sc && active && { borderColor: sc.border, backgroundColor: sc.bg },
+                    ]}
+                    onPress={() => { setFilter(f); setShowFilter(false); }}
+                  >
+                    <View style={styles.modalRowLeft}>
+                      {sc && <View style={[styles.modalDot, { backgroundColor: sc.color }]} />}
+                      {!sc && <View style={[styles.modalDot, { backgroundColor: Colors.textMuted }]} />}
+                      <Text style={[styles.modalLabel, sc && active && { color: sc.color }]}>
+                        {label}
+                      </Text>
+                    </View>
+                    <View style={styles.modalRowRight}>
+                      <Text style={[styles.modalCount, sc && active && { color: sc.color }]}>
+                        {counts[f]}
+                      </Text>
+                      {active && <Text style={[styles.modalCheck, sc && { color: sc.color }]}>✓</Text>}
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
-          }
-        />
-      )}
+          </TouchableOpacity>
+        </Modal>
+
+        {/* Job list */}
+        {loading ? (
+          <ActivityIndicator style={{ flex: 1 }} color={Colors.primary} size="large" />
+        ) : (
+          <FlatList
+            data={filteredJobs}
+            keyExtractor={j => j.id}
+            renderItem={renderJob}
+            contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom + 80 }]}
+            refreshControl={
+              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} />
+            }
+            ListEmptyComponent={
+              <View style={styles.empty}>
+                <Text style={styles.emptyText}>No jobs found</Text>
+              </View>
+            }
+          />
+        )}
+      </SafeAreaView>
 
       {/* FAB */}
       <TouchableOpacity
-        style={styles.fab}
+        style={[styles.fab, { bottom: insets.bottom + 12 }]}
         onPress={() => navigation.navigate('CreateJob')}
         activeOpacity={0.85}
       >
         <Text style={styles.fabText}>+ New Job</Text>
       </TouchableOpacity>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -228,8 +228,8 @@ const styles = StyleSheet.create({
   headerSub:  { fontSize: 12, color: Colors.accentLight },
   headerName: { fontSize: 20, fontWeight: '800', color: Colors.white },
   logoutBtn:  { backgroundColor: Colors.primaryLight, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8 },
-  logoutText:  { color: Colors.accentLight, fontSize: 13, fontWeight: '600' },
-  headerRole:  { fontSize: 11, color: Colors.accent, fontWeight: '600', marginTop: 2, letterSpacing: 0.5 },
+  logoutText: { color: Colors.accentLight, fontSize: 13, fontWeight: '600' },
+  headerRole: { fontSize: 11, color: Colors.accent, fontWeight: '600', marginTop: 2, letterSpacing: 0.5 },
 
   statsRow: {
     flexDirection: 'row', backgroundColor: Colors.surface,
@@ -261,7 +261,6 @@ const styles = StyleSheet.create({
   filterBtnCount: { fontSize: 11, fontWeight: '800', color: Colors.textMuted },
   filterArrow:    { fontSize: 9, color: Colors.textMuted },
 
-  // Modal
   modalOverlay: {
     flex: 1, backgroundColor: 'rgba(0,0,0,0.4)',
     alignItems: 'center', justifyContent: 'center',
@@ -287,7 +286,7 @@ const styles = StyleSheet.create({
   modalCount:     { fontSize: 13, fontWeight: '700', color: Colors.textMuted },
   modalCheck:     { fontSize: 16, fontWeight: '700', color: Colors.primary },
 
-  listContent: { padding: 14, paddingBottom: 100 },
+  listContent: { padding: 14 },
 
   jobCard: {
     backgroundColor: Colors.surface, borderRadius: 14, padding: 16,
@@ -310,7 +309,7 @@ const styles = StyleSheet.create({
   emptyText: { fontSize: 16, color: Colors.textMuted },
 
   fab: {
-    position: 'absolute', bottom: 24, right: 20, left: 20,
+    position: 'absolute', right: 20, left: 20,
     backgroundColor: Colors.accent, borderRadius: 14, height: 52,
     alignItems: 'center', justifyContent: 'center',
     borderBottomWidth: 3, borderBottomColor: '#9A7A30',

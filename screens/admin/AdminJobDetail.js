@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity,
-  StyleSheet, SafeAreaView, ActivityIndicator,
+  StyleSheet, ActivityIndicator,
   Alert, Image, Linking,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { doc, onSnapshot, updateDoc, serverTimestamp, deleteDoc } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { Colors, StatusConfig, CategoryConfig, PriorityConfig } from '../../constants/theme';

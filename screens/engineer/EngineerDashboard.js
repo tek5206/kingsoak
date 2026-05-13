@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity,
-  StyleSheet, SafeAreaView, ActivityIndicator,
+  StyleSheet, ActivityIndicator,
   RefreshControl,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { collection, query, where, orderBy, onSnapshot } from 'firebase/firestore';
 import { signOut } from 'firebase/auth';
 import { auth, db } from '../../firebase';
