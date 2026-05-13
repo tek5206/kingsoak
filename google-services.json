@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "368241787491",
+    "project_id": "kings-oak-demo",
+    "storage_bucket": "kings-oak-demo.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:368241787491:android:ecb6451f95909e4f636e56",
+        "android_client_info": {
+          "package_name": "com.kingsoak.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCVjnLHptZRNEchWvbdUQmF_B6ZFfEP2fw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

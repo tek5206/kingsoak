@@ -27,10 +27,13 @@ async function registerForPushNotificationsAsync() {
 
   if (Platform.OS === 'android') {
     await Notifications.setNotificationChannelAsync('default', {
-      name: 'default',
+      name: 'Kings Oak Notifications',
       importance: Notifications.AndroidImportance.MAX,
-      vibrationPattern: [0, 250, 250, 250],
+      vibrationPattern: [0, 500, 250, 500],
       lightColor: '#C9A84C',
+      sound: 'default',
+      enableVibrate: true,
+      showBadge: true,
     });
   }
 
