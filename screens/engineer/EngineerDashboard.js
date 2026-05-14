@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity,
   StyleSheet, ActivityIndicator,
@@ -10,6 +10,15 @@ import { signOut } from 'firebase/auth';
 import { auth, db } from '../../firebase';
 import { Colors, StatusConfig, CategoryConfig } from '../../constants/theme';
 
+const ACTIVE_STATUSES = ['pending', 'in_progress', 'needs_revision'];
+
+// FIX: Kategori normalizasyonu
+function getCategories(job) {
+  if (Array.isArray(job.categories) && job.categories.length > 0) return job.categories;
+  if (job.category) return [job.category];
+  return [];
+}
+
 export default function EngineerDashboard({ navigation, route }) {
   const { userName } = route.params || {};
   const [jobs, setJobs]             = useState([]);
@@ -19,30 +28,41 @@ export default function EngineerDashboard({ navigation, route }) {
 
   const uid = auth.currentUser?.uid;
 
-  useEffect(() => {
+  // FIX: Listener ref'te sakla — refresh gerçek yeniden abone olma
+  const unsubRef = useRef(null);
+
+  const subscribe = useCallback(() => {
     if (!uid) return;
+    if (unsubRef.current) unsubRef.current();
+
     const q = query(
       collection(db, 'jobs'),
       where('assignedTo', '==', uid),
       orderBy('createdAt', 'desc'),
     );
-    const unsub = onSnapshot(q, (snap) => {
+    unsubRef.current = onSnapshot(q, (snap) => {
       setJobs(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      setLoading(false);
+      setRefreshing(false); // FIX: veri gelince kapat
+    }, () => {
       setLoading(false);
       setRefreshing(false);
     });
-    return unsub;
   }, [uid]);
 
+  useEffect(() => {
+    subscribe();
+    return () => { if (unsubRef.current) unsubRef.current(); };
+  }, [subscribe]);
+
+  // FIX: Gerçek refresh — listener yeniden başlat
   const onRefresh = useCallback(() => {
     setRefreshing(true);
-    setTimeout(() => setRefreshing(false), 2000);
-  }, []);
-
-  const ACTIVE_STATUSES = ['pending', 'in_progress', 'needs_revision'];
+    subscribe();
+  }, [subscribe]);
 
   const filteredJobs = jobs.filter(j => {
-    if (filter === 'active') return ACTIVE_STATUSES.includes(j.status);
+    if (filter === 'active')    return ACTIVE_STATUSES.includes(j.status);
     if (filter === 'completed') return j.status === 'completed' || j.status === 'pending_approval';
     return true;
   });
@@ -52,39 +72,33 @@ export default function EngineerDashboard({ navigation, route }) {
 
   const renderJob = ({ item }) => {
     const sc = StatusConfig[item.status] || StatusConfig.pending;
-    const cc = CategoryConfig[item.category] || CategoryConfig.General;
+
+    // FIX: category normalizasyonu
+    const cats       = getCategories(item);
+    const primaryCat = cats[0] || 'General';
+    const cc         = CategoryConfig[primaryCat] || CategoryConfig.General;
     const isRevision = item.status === 'needs_revision';
 
     return (
       <TouchableOpacity
         style={[styles.card, isRevision && styles.cardRevision]}
         onPress={() => navigation.navigate('EngineerJobDetail', { jobId: item.id })}
-        activeOpacity={0.85}
+        activeOpacity={0.75}
       >
         {isRevision && (
-          <View style={styles.revisionBanner}>
-            <Text style={styles.revisionBannerText}>Revision Requested</Text>
-          </View>
+          <Text style={styles.revisionBadge}>⚠️ Revision Requested</Text>
         )}
-
         <View style={styles.cardTop}>
-          <View style={[styles.catBadge, { backgroundColor: cc.bg }]}>
-            <Text style={[styles.catText, { color: cc.color }]}>{item.category}</Text>
-          </View>
-          <View style={[styles.statusBadge, { backgroundColor: sc.bg, borderColor: sc.border }]}>
-            <Text style={[styles.statusText, { color: sc.color }]}>{sc.label}</Text>
+          <View style={[styles.catDot, { backgroundColor: cc.color }]} />
+          <Text style={styles.cardTitle} numberOfLines={1}>{item.title}</Text>
+          <View style={[styles.statusPill, { backgroundColor: sc.bg }]}>
+            <Text style={[styles.statusPillText, { color: sc.color }]}>{sc.label}</Text>
           </View>
         </View>
-
-        <Text style={styles.cardTitle} numberOfLines={2}>{item.title}</Text>
-        <Text style={styles.cardAddress} numberOfLines={1}>📍 {item.address || 'No address'}</Text>
-
-        <View style={styles.cardBottom}>
-          <Text style={styles.cardMeta}>
-            {item.scheduledDate ? ` ${item.scheduledDate}` : '📅 Not scheduled'}
-          </Text>
-          <Text style={styles.viewMore}>View →</Text>
-        </View>
+        <Text style={styles.metaText}>
+          {item.scheduledDate ? `📅 ${item.scheduledDate}` : '📅 Not scheduled'}
+        </Text>
+        <Text style={styles.viewMore}>View →</Text>
       </TouchableOpacity>
     );
   };
@@ -169,94 +183,38 @@ export default function EngineerDashboard({ navigation, route }) {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Colors.background },
 
-  header: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    backgroundColor: Colors.primary,
-    paddingHorizontal: 20, paddingVertical: 16,
-  },
+  header:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: Colors.primary, paddingHorizontal: 20, paddingVertical: 16 },
   headerSub:  { fontSize: 12, color: Colors.accentLight },
   headerName: { fontSize: 20, fontWeight: '800', color: Colors.white },
-  logoutBtn:  {
-    backgroundColor: Colors.primaryLight,
-    paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8,
-  },
+  logoutBtn:  { backgroundColor: Colors.primaryLight, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8 },
   logoutText: { color: Colors.accentLight, fontSize: 13, fontWeight: '600' },
 
-  summaryRow: {
-    flexDirection: 'row',
-    backgroundColor: Colors.surface,
-    borderBottomWidth: 1, borderBottomColor: Colors.divider,
-  },
+  summaryRow:     { flexDirection: 'row', backgroundColor: Colors.surface, borderBottomWidth: 1, borderBottomColor: Colors.divider },
   summaryBox:     { flex: 1, alignItems: 'center', paddingVertical: 14 },
-  summaryDivider: {
-    borderLeftWidth: 1, borderRightWidth: 1,
-    borderLeftColor: Colors.divider, borderRightColor: Colors.divider,
-  },
-  summaryNum:   { fontSize: 22, fontWeight: '800' },
-  summaryLabel: { fontSize: 11, color: Colors.textMuted, marginTop: 2 },
+  summaryDivider: { borderLeftWidth: 1, borderRightWidth: 1, borderLeftColor: Colors.divider, borderRightColor: Colors.divider },
+  summaryNum:     { fontSize: 22, fontWeight: '800' },
+  summaryLabel:   { fontSize: 11, color: Colors.textMuted, marginTop: 2 },
 
-  tabs: {
-    flexDirection: 'row',
-    backgroundColor: Colors.surface,
-    paddingHorizontal: 12, paddingVertical: 8,
-    gap: 8,
-    borderBottomWidth: 1, borderBottomColor: Colors.divider,
-  },
-  tab: {
-    flex: 1, paddingVertical: 8, borderRadius: 20,
-    alignItems: 'center',
-    backgroundColor: Colors.background,
-    borderWidth: 1, borderColor: Colors.border,
-  },
-  tabActive:     { backgroundColor: Colors.primary, borderColor: Colors.primary },
-  tabText:       { fontSize: 12, color: Colors.textSecondary, fontWeight: '600' },
-  tabTextActive: { color: Colors.white },
+  tabs:         { flexDirection: 'row', backgroundColor: Colors.surface, paddingHorizontal: 12, paddingVertical: 8, gap: 8, borderBottomWidth: 1, borderBottomColor: Colors.divider },
+  tab:          { flex: 1, paddingVertical: 8, borderRadius: 20, alignItems: 'center', backgroundColor: Colors.background, borderWidth: 1, borderColor: Colors.border },
+  tabActive:    { backgroundColor: Colors.primary, borderColor: Colors.primary },
+  tabText:      { fontSize: 12, color: Colors.textSecondary, fontWeight: '600' },
+  tabTextActive:{ color: Colors.white },
 
   listContent: { padding: 14, paddingBottom: 40 },
 
-  card: {
-    backgroundColor: Colors.surface,
-    borderRadius: 14, padding: 16, marginBottom: 12,
-    borderWidth: 1, borderColor: Colors.border,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-    elevation: 2,
-  },
-  cardRevision: { borderColor: Colors.needsRevision },
+  card:         { backgroundColor: Colors.surface, borderRadius: 14, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: Colors.border, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 6, elevation: 2 },
+  cardRevision: { borderColor: '#FF9800', borderWidth: 1.5 },
+  revisionBadge:{ fontSize: 12, color: '#E65100', fontWeight: '700', marginBottom: 6 },
+  cardTop:      { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
+  catDot:       { width: 8, height: 8, borderRadius: 4 },
+  cardTitle:    { flex: 1, fontSize: 15, fontWeight: '700', color: Colors.textPrimary },
+  statusPill:   { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 20 },
+  statusPillText:{ fontSize: 11, fontWeight: '700' },
+  metaText:     { fontSize: 12, color: Colors.textMuted, marginBottom: 4 },
+  viewMore:     { fontSize: 12, color: Colors.primary, fontWeight: '700', textAlign: 'right' },
 
-  revisionBanner: {
-    backgroundColor: Colors.needsRevisionBg,
-    borderRadius: 8, paddingVertical: 6,
-    alignItems: 'center', marginBottom: 10,
-  },
-  revisionBannerText: { color: Colors.needsRevision, fontWeight: '700', fontSize: 13 },
-
-  cardTop: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
-
-  catBadge: {
-    flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20,
-  },
-  catText: { fontSize: 11, fontWeight: '700' },
-
-  statusBadge: {
-    paddingHorizontal: 10, paddingVertical: 4,
-    borderRadius: 20, borderWidth: 1,
-  },
-  statusText: { fontSize: 11, fontWeight: '700' },
-
-  cardTitle:   { fontSize: 16, fontWeight: '700', color: Colors.textPrimary, marginBottom: 4 },
-  cardAddress: { fontSize: 12, color: Colors.textMuted, marginBottom: 10 },
-  cardBottom:  {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    borderTopWidth: 1, borderTopColor: Colors.divider, paddingTop: 10,
-  },
-  cardMeta: { fontSize: 12, color: Colors.textSecondary },
-  viewMore:  { fontSize: 13, color: Colors.primary, fontWeight: '700' },
-
-  empty:     { alignItems: 'center', paddingTop: 80 },
-  emptyIcon: { fontSize: 40, marginBottom: 12 },
-  emptyText: { fontSize: 16, color: Colors.textMuted },
+  empty:     { alignItems: 'center', paddingTop: 60 },
+  emptyIcon: { fontSize: 40, marginBottom: 8 },
+  emptyText: { fontSize: 15, color: Colors.textMuted },
 });

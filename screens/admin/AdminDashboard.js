@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity,
   StyleSheet, ActivityIndicator,
@@ -12,6 +12,13 @@ import { Colors, StatusConfig, CategoryConfig } from '../../constants/theme';
 
 const FILTERS = ['all', 'pending', 'in_progress', 'pending_approval', 'needs_revision', 'completed'];
 
+// FIX: Kategori normalizasyonu
+function getCategories(job) {
+  if (Array.isArray(job.categories) && job.categories.length > 0) return job.categories;
+  if (job.category) return [job.category];
+  return [];
+}
+
 export default function AdminDashboard({ navigation, route }) {
   const { userName } = route.params || {};
   const [jobs, setJobs]             = useState([]);
@@ -22,20 +29,33 @@ export default function AdminDashboard({ navigation, route }) {
   const [showFilter, setShowFilter] = useState(false);
   const insets = useSafeAreaInsets();
 
-  useEffect(() => {
+  // FIX: onSnapshot'u ref'te tut — pull-to-refresh yeniden abone olmak yerine
+  //      snapshot zaten gerçek zamanlı; refreshing bayrağını manuel kaldır
+  const unsubRef = useRef(null);
+
+  const subscribe = useCallback(() => {
+    if (unsubRef.current) unsubRef.current(); // önceki listener'ı temizle
     const q = query(collection(db, 'jobs'), orderBy('createdAt', 'desc'));
-    const unsub = onSnapshot(q, (snap) => {
+    unsubRef.current = onSnapshot(q, (snap) => {
       setJobs(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      setLoading(false);
+      setRefreshing(false); // FIX: veri gelince refreshing'i kapat
+    }, () => {
       setLoading(false);
       setRefreshing(false);
     });
-    return unsub;
   }, []);
 
+  useEffect(() => {
+    subscribe();
+    return () => { if (unsubRef.current) unsubRef.current(); };
+  }, [subscribe]);
+
+  // FIX: pull-to-refresh gerçek veri yenilemesi — listener'ı yeniden başlat
   const onRefresh = useCallback(() => {
     setRefreshing(true);
-    setTimeout(() => setRefreshing(false), 2000);
-  }, []);
+    subscribe();
+  }, [subscribe]);
 
   const filteredJobs = jobs.filter(j => {
     const matchStatus = filter === 'all' || j.status === filter;
@@ -55,186 +75,170 @@ export default function AdminDashboard({ navigation, route }) {
 
   const renderJob = ({ item }) => {
     const sc = StatusConfig[item.status] || StatusConfig.pending;
-    const cc = CategoryConfig[item.category] || CategoryConfig.General;
+
+    // FIX: category normalizasyonu
+    const cats        = getCategories(item);
+    const primaryCat  = cats[0] || 'General';
+    const cc          = CategoryConfig[primaryCat] || CategoryConfig.General;
+
     return (
       <TouchableOpacity
-        style={styles.jobCard}
+        style={styles.card}
         onPress={() => navigation.navigate('AdminJobDetail', { jobId: item.id })}
-        activeOpacity={0.85}
+        activeOpacity={0.75}
       >
-        <View style={styles.jobCardTop}>
-          <View style={[styles.catBadge, { backgroundColor: cc.bg }]}>
-            <Text style={[styles.catText, { color: cc.color }]}>{item.category}</Text>
-          </View>
-          <View style={[styles.statusBadge, { backgroundColor: sc.bg, borderColor: sc.border }]}>
-            <Text style={[styles.statusText, { color: sc.color }]}>{sc.label}</Text>
+        <View style={styles.cardTop}>
+          <View style={[styles.catDot, { backgroundColor: cc.color }]} />
+          <Text style={styles.cardTitle} numberOfLines={1}>{item.title}</Text>
+          <View style={[styles.statusPill, { backgroundColor: sc.bg }]}>
+            <Text style={[styles.statusPillText, { color: sc.color }]}>{sc.label}</Text>
           </View>
         </View>
-        <Text style={styles.jobTitle} numberOfLines={2}>{item.title}</Text>
-        <Text style={styles.jobAddress} numberOfLines={1}>📍 {item.address || 'No address'}</Text>
-        <View style={styles.jobCardBottom}>
-          <Text style={styles.jobMeta}>👤 {item.assignedToName || 'Unassigned'}</Text>
-          <Text style={styles.jobMeta}>
-            {item.scheduledDate ? ` ${item.scheduledDate}` : '📅 Not scheduled'}
-          </Text>
+
+        <View style={styles.cardMeta}>
+          <Text style={styles.metaText}>👤 {item.assignedToName || 'Unassigned'}</Text>
+          {item.scheduledDate
+            ? <Text style={styles.metaText}>📅 {item.scheduledDate}</Text>
+            : null}
         </View>
+
+        {cats.length > 1 && (
+          <Text style={styles.extraCats}>+{cats.slice(1).join(', ')}</Text>
+        )}
       </TouchableOpacity>
     );
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: Colors.background }}>
-      <SafeAreaView style={styles.safe}>
-        <View style={styles.header}>
-          <View>
-            <Text style={styles.headerSub}>Welcome back,</Text>
-            <Text style={styles.headerName}>{userName || 'Admin'}</Text>
-            <Text style={styles.headerRole}>Manager</Text>
-          </View>
-          <TouchableOpacity style={styles.logoutBtn} onPress={() => signOut(auth)}>
-            <Text style={styles.logoutText}>Logout</Text>
+    <SafeAreaView style={styles.safe}>
+      {/* Header */}
+      <View style={styles.header}>
+        <View>
+          <Text style={styles.headerSub}>Admin Panel</Text>
+          <Text style={styles.headerName}>{userName || 'Admin'}</Text>
+        </View>
+        <View style={{ flexDirection: 'row', gap: 8 }}>
+          <TouchableOpacity style={styles.headerBtn} onPress={() => setShowFilter(true)}>
+            <Text style={styles.headerBtnText}>Filter</Text>
           </TouchableOpacity>
-        </View>
-
-        <View style={styles.statsRow}>
-          <View style={styles.statBox}>
-            <Text style={styles.statNum}>{counts.all}</Text>
-            <Text style={styles.statLabel}>Total</Text>
-          </View>
-          <View style={styles.statBox}>
-            <Text style={[styles.statNum, { color: Colors.pending }]}>{counts.pending}</Text>
-            <Text style={styles.statLabel}>Pending</Text>
-          </View>
-          <View style={styles.statBox}>
-            <Text style={[styles.statNum, { color: Colors.inProgress }]}>{counts.in_progress}</Text>
-            <Text style={styles.statLabel}>Active</Text>
-          </View>
-          <View style={styles.statBox}>
-            <Text style={[styles.statNum, { color: Colors.completed }]}>{counts.completed}</Text>
-            <Text style={styles.statLabel}>Done</Text>
-          </View>
-        </View>
-
-        <View style={styles.searchRow}>
-          <TextInput
-            style={styles.searchInput}
-            value={search}
-            onChangeText={setSearch}
-            placeholder="Search jobs or engineers..."
-            placeholderTextColor={Colors.textMuted}
-          />
           <TouchableOpacity
-            style={[styles.filterBtn, currentSc && { backgroundColor: currentSc.bg, borderColor: currentSc.border }]}
-            onPress={() => setShowFilter(true)}
+            style={[styles.headerBtn, styles.headerBtnPrimary]}
+            onPress={() => navigation.navigate('CreateJob')}
           >
-            <Text style={[styles.filterBtnText, currentSc && { color: currentSc.color }]}>{currentLabel}</Text>
-            <Text style={[styles.filterBtnCount, currentSc && { color: currentSc.color }]}>{counts[filter]}</Text>
-            <Text style={[styles.filterArrow, currentSc && { color: currentSc.color }]}>▼</Text>
+            <Text style={[styles.headerBtnText, { color: Colors.primary }]}>+ New Job</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.headerBtn} onPress={() => signOut(auth)}>
+            <Text style={styles.headerBtnText}>Logout</Text>
           </TouchableOpacity>
         </View>
+      </View>
 
-        <Modal visible={showFilter} transparent animationType="fade" onRequestClose={() => setShowFilter(false)}>
-          <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setShowFilter(false)}>
-            <View style={styles.modalBox}>
-              <Text style={styles.modalTitle}>Filter by Status</Text>
-              {FILTERS.map(f => {
-                const sc     = f !== 'all' ? StatusConfig[f] : null;
-                const active = filter === f;
-                const label  = f === 'all' ? 'All Jobs' : StatusConfig[f]?.label || f;
-                return (
-                  <TouchableOpacity
-                    key={f}
-                    style={[styles.modalRow, active && styles.modalRowActive, sc && active && { borderColor: sc.border, backgroundColor: sc.bg }]}
-                    onPress={() => { setFilter(f); setShowFilter(false); }}
-                  >
-                    <View style={styles.modalRowLeft}>
-                      <View style={[styles.modalDot, { backgroundColor: sc ? sc.color : Colors.textMuted }]} />
-                      <Text style={[styles.modalLabel, sc && active && { color: sc.color }]}>{label}</Text>
-                    </View>
-                    <View style={styles.modalRowRight}>
-                      <Text style={[styles.modalCount, sc && active && { color: sc.color }]}>{counts[f]}</Text>
-                      {active && <Text style={[styles.modalCheck, sc && { color: sc.color }]}>✓</Text>}
-                    </View>
-                  </TouchableOpacity>
-                );
-              })}
+      {/* Search */}
+      <View style={styles.searchBar}>
+        <TextInput
+          style={styles.searchInput}
+          value={search}
+          onChangeText={setSearch}
+          placeholder="Search jobs or engineers…"
+          placeholderTextColor={Colors.textMuted}
+          clearButtonMode="while-editing"
+        />
+      </View>
+
+      {/* Active filter label */}
+      <View style={styles.filterLabel}>
+        <Text style={styles.filterLabelText}>
+          {currentLabel}{currentSc ? '' : ''} — {filteredJobs.length} job{filteredJobs.length !== 1 ? 's' : ''}
+        </Text>
+      </View>
+
+      {/* List */}
+      {loading ? (
+        <ActivityIndicator style={{ flex: 1 }} color={Colors.primary} size="large" />
+      ) : (
+        <FlatList
+          data={filteredJobs}
+          keyExtractor={j => j.id}
+          renderItem={renderJob}
+          contentContainerStyle={styles.listContent}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={Colors.primary}
+              colors={[Colors.primary]}
+            />
+          }
+          ListEmptyComponent={
+            <View style={styles.empty}>
+              <Text style={styles.emptyIcon}>📋</Text>
+              <Text style={styles.emptyText}>No jobs found</Text>
             </View>
-          </TouchableOpacity>
-        </Modal>
+          }
+        />
+      )}
 
-        {loading ? (
-          <ActivityIndicator style={{ flex: 1 }} color={Colors.primary} size="large" />
-        ) : (
-          <FlatList
-            data={filteredJobs}
-            keyExtractor={j => j.id}
-            renderItem={renderJob}
-            contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom + 80 }]}
-            refreshControl={
-              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} colors={[Colors.primary]} />
-            }
-            ListEmptyComponent={
-              <View style={styles.empty}>
-                <Text style={styles.emptyText}>No jobs found</Text>
-              </View>
-            }
-          />
-        )}
-      </SafeAreaView>
-
-      <TouchableOpacity
-        style={[styles.fab, { bottom: insets.bottom + 12 }]}
-        onPress={() => navigation.navigate('CreateJob')}
-        activeOpacity={0.85}
-      >
-        <Text style={styles.fabText}>+ New Job</Text>
-      </TouchableOpacity>
-    </View>
+      {/* Filter modal */}
+      <Modal visible={showFilter} transparent animationType="slide" onRequestClose={() => setShowFilter(false)}>
+        <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setShowFilter(false)} />
+        <View style={[styles.modalSheet, { paddingBottom: insets.bottom + 16 }]}>
+          <Text style={styles.modalTitle}>Filter by Status</Text>
+          {FILTERS.map(f => {
+            const sc = f === 'all' ? null : StatusConfig[f];
+            return (
+              <TouchableOpacity
+                key={f}
+                style={[styles.filterOption, filter === f && styles.filterOptionActive]}
+                onPress={() => { setFilter(f); setShowFilter(false); }}
+              >
+                <Text style={[styles.filterOptionText, filter === f && { color: Colors.primary }]}>
+                  {sc ? sc.label : 'All Jobs'} ({counts[f]})
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      </Modal>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Colors.background },
+
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: Colors.primary, paddingHorizontal: 20, paddingVertical: 16 },
   headerSub:  { fontSize: 12, color: Colors.accentLight },
   headerName: { fontSize: 20, fontWeight: '800', color: Colors.white },
-  logoutBtn:  { backgroundColor: Colors.primaryLight, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8 },
-  logoutText: { color: Colors.accentLight, fontSize: 13, fontWeight: '600' },
-  headerRole: { fontSize: 11, color: Colors.accent, fontWeight: '600', marginTop: 2, letterSpacing: 0.5 },
-  statsRow:  { flexDirection: 'row', backgroundColor: Colors.surface, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: Colors.divider },
-  statBox:   { flex: 1, alignItems: 'center' },
-  statNum:   { fontSize: 22, fontWeight: '800', color: Colors.textPrimary },
-  statLabel: { fontSize: 11, color: Colors.textMuted, marginTop: 2 },
-  searchRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingVertical: 10, backgroundColor: Colors.surface, borderBottomWidth: 1, borderBottomColor: Colors.divider },
-  searchInput: { flex: 1, backgroundColor: Colors.background, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, fontSize: 14, color: Colors.textPrimary, borderWidth: 1, borderColor: Colors.border },
-  filterBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: Colors.background, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, borderWidth: 1, borderColor: Colors.border },
-  filterBtnText:  { fontSize: 12, fontWeight: '700', color: Colors.textSecondary },
-  filterBtnCount: { fontSize: 11, fontWeight: '800', color: Colors.textMuted },
-  filterArrow:    { fontSize: 9, color: Colors.textMuted },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', alignItems: 'center', justifyContent: 'center' },
-  modalBox: { backgroundColor: Colors.surface, borderRadius: 20, padding: 20, width: '88%', elevation: 10 },
-  modalTitle: { fontSize: 17, fontWeight: '800', color: Colors.textPrimary, marginBottom: 14 },
-  modalRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 13, borderRadius: 12, marginBottom: 8, borderWidth: 1, borderColor: Colors.border, backgroundColor: Colors.background },
-  modalRowActive: { borderColor: Colors.primary, backgroundColor: '#EEF4FF' },
-  modalRowLeft:   { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  modalRowRight:  { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  modalDot:   { width: 10, height: 10, borderRadius: 5 },
-  modalLabel: { fontSize: 14, fontWeight: '600', color: Colors.textPrimary },
-  modalCount: { fontSize: 13, fontWeight: '700', color: Colors.textMuted },
-  modalCheck: { fontSize: 16, fontWeight: '700', color: Colors.primary },
-  listContent: { padding: 14 },
-  jobCard: { backgroundColor: Colors.surface, borderRadius: 14, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: Colors.border, elevation: 2 },
-  jobCardTop:    { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
-  catBadge:      { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
-  catText:       { fontSize: 11, fontWeight: '700' },
-  statusBadge:   { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20, borderWidth: 1 },
-  statusText:    { fontSize: 11, fontWeight: '700' },
-  jobTitle:      { fontSize: 16, fontWeight: '700', color: Colors.textPrimary, marginBottom: 4 },
-  jobAddress:    { fontSize: 12, color: Colors.textMuted, marginBottom: 10 },
-  jobCardBottom: { flexDirection: 'row', justifyContent: 'space-between', borderTopWidth: 1, borderTopColor: Colors.divider, paddingTop: 10 },
-  jobMeta:       { fontSize: 12, color: Colors.textSecondary },
+  headerBtn:  { backgroundColor: Colors.primaryLight, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 },
+  headerBtnPrimary: { backgroundColor: Colors.accent },
+  headerBtnText:    { color: Colors.accentLight, fontSize: 12, fontWeight: '600' },
+
+  searchBar:   { backgroundColor: Colors.surface, paddingHorizontal: 16, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: Colors.divider },
+  searchInput: { backgroundColor: Colors.background, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 8, fontSize: 14, color: Colors.textPrimary, borderWidth: 1, borderColor: Colors.border },
+
+  filterLabel:     { paddingHorizontal: 16, paddingVertical: 6, backgroundColor: Colors.surface, borderBottomWidth: 1, borderBottomColor: Colors.divider },
+  filterLabelText: { fontSize: 12, color: Colors.textMuted, fontWeight: '600' },
+
+  listContent: { padding: 14, paddingBottom: 40 },
+
+  card: { backgroundColor: Colors.surface, borderRadius: 14, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: Colors.border, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 },
+  cardTop:      { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
+  catDot:       { width: 8, height: 8, borderRadius: 4 },
+  cardTitle:    { flex: 1, fontSize: 15, fontWeight: '700', color: Colors.textPrimary },
+  statusPill:   { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 20 },
+  statusPillText:{ fontSize: 11, fontWeight: '700' },
+  cardMeta:     { flexDirection: 'row', gap: 16 },
+  metaText:     { fontSize: 12, color: Colors.textMuted },
+  extraCats:    { fontSize: 11, color: Colors.textMuted, marginTop: 4 },
+
   empty:     { alignItems: 'center', paddingTop: 60 },
-  emptyText: { fontSize: 16, color: Colors.textMuted },
-  fab: { position: 'absolute', right: 20, left: 20, backgroundColor: Colors.accent, borderRadius: 14, height: 52, alignItems: 'center', justifyContent: 'center', borderBottomWidth: 3, borderBottomColor: '#9A7A30', elevation: 6 },
-  fabText: { fontSize: 16, fontWeight: '700', color: Colors.primary },
+  emptyIcon: { fontSize: 40, marginBottom: 8 },
+  emptyText: { fontSize: 15, color: Colors.textMuted },
+
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.3)' },
+  modalSheet:   { backgroundColor: Colors.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20 },
+  modalTitle:   { fontSize: 16, fontWeight: '800', color: Colors.textPrimary, marginBottom: 16 },
+  filterOption:       { paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: Colors.divider },
+  filterOptionActive: { backgroundColor: Colors.background, borderRadius: 8, paddingHorizontal: 8 },
+  filterOptionText:   { fontSize: 15, color: Colors.textSecondary, fontWeight: '500' },
 });

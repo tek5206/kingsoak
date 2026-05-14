@@ -1,0 +1,73 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ─── Yardımcı fonksiyonlar ───────────────────────────────────────────────
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return request.auth.uid == uid;
+    }
+
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && getUserData().role == 'admin';
+    }
+
+    function isEngineer() {
+      return isSignedIn() && getUserData().role == 'engineer';
+    }
+
+    // ─── Kullanıcılar ────────────────────────────────────────────────────────
+    match /users/{userId} {
+      // Kendi profilini okuyabilir; admin hepsini okuyabilir
+      allow read: if isSignedIn() && (isOwner(userId) || isAdmin());
+
+      // Sadece admin yeni kullanıcı oluşturabilir
+      allow create: if isAdmin();
+
+      // Kendi push token'ını güncelleyebilir; admin her şeyi
+      allow update: if isSignedIn() && (
+        isOwner(userId) && request.resource.data.diff(resource.data).affectedKeys()
+                              .hasOnly(['expoPushToken'])
+        || isAdmin()
+      );
+
+      allow delete: if isAdmin();
+    }
+
+    // ─── İşler (jobs) ────────────────────────────────────────────────────────
+    match /jobs/{jobId} {
+      // Admin: tüm işleri okuyabilir
+      // Mühendis: sadece kendine atanmış işleri okuyabilir
+      allow read: if isSignedIn() && (
+        isAdmin()
+        || (isEngineer() && resource.data.assignedTo == request.auth.uid)
+      );
+
+      // Sadece admin iş oluşturabilir
+      allow create: if isAdmin();
+
+      // Admin: her alanı güncelleyebilir
+      // Mühendis: sadece kendi işinin belirli alanlarını güncelleyebilir
+      allow update: if isSignedIn() && (
+        isAdmin()
+        || (
+          isEngineer()
+          && resource.data.assignedTo == request.auth.uid
+          && request.resource.data.diff(resource.data).affectedKeys()
+               .hasOnly(['status', 'engineerNote', 'photos', 'submittedAt', 'updatedAt'])
+        )
+      );
+
+      // Sadece admin silebilir
+      allow delete: if isAdmin();
+    }
+  }
+}
