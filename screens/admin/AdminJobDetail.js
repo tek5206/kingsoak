@@ -182,7 +182,7 @@ export default function AdminJobDetail({ navigation, route }) {
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>Details</Text>
               {!editMode ? (
-                <TouchableOpacity onPress={() => setEditMode(true)} style={styles.editBtn}>
+                <TouchableOpacity onPress={() => navigation.navigate('CreateJob', { jobId })} style={styles.editBtn}>
                   <Text style={styles.editBtnText}>Edit</Text>
                 </TouchableOpacity>
               ) : (
@@ -264,7 +264,7 @@ export default function AdminJobDetail({ navigation, route }) {
                     <Text style={styles.actionBtnText}>✓ Approve</Text>
                   </TouchableOpacity>
                   <TouchableOpacity style={styles.revisionBtn} onPress={handleRevision}>
-                    <Text style={styles.actionBtnText}>↩ Revision</Text>
+                    <Text style={styles.actionBtnText}>Revision</Text>
                   </TouchableOpacity>
                 </View>
               )}
