@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity,
   StyleSheet, ActivityIndicator,
-  Alert, Image, TextInput,
+  Alert, Image, TextInput, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
@@ -65,45 +65,44 @@ export default function EngineerJobDetail({ navigation, route }) {
   };
 
   const uploadPhotos = async () => {
-  const urls  = [];
-  const token = await auth.currentUser.getIdToken();
+    const urls  = [];
+    const token = await auth.currentUser.getIdToken();
 
-  for (let i = 0; i < photos.length; i++) {
-    const uri = photos[i];
+    for (let i = 0; i < photos.length; i++) {
+      const uri = photos[i];
 
-    const compressed = await ImageManipulator.manipulateAsync(
-      uri,
-      [{ resize: { width: 600 } }],
-      { compress: 0.5, format: ImageManipulator.SaveFormat.JPEG }
-    );
+      const compressed = await ImageManipulator.manipulateAsync(
+        uri,
+        [{ resize: { width: 600 } }],
+        { compress: 0.5, format: ImageManipulator.SaveFormat.JPEG }
+      );
 
-    const filename    = `${Date.now()}_${i}.jpg`;
-    const path        = `jobs/${jobId.slice(0, 8)}/${filename}`;
-    const encodedPath = encodeURIComponent(path);
-    const uploadUrl   = `https://firebasestorage.googleapis.com/v0/b/${BUCKET}/o?name=${encodedPath}`;
+      const filename    = `${Date.now()}_${i}.jpg`;
+      const path        = `jobs/${jobId.slice(0, 8)}/${filename}`;
+      const encodedPath = encodeURIComponent(path);
+      const uploadUrl   = `https://firebasestorage.googleapis.com/v0/b/${BUCKET}/o?name=${encodedPath}`;
 
-    const result = await new Promise((resolve, reject) => {
-      const xhr = new XMLHttpRequest();
-      xhr.open('POST', uploadUrl);
-      xhr.setRequestHeader('Authorization', `Bearer ${token}`);
-      xhr.onload = () => {
-        if (xhr.status === 200) resolve(JSON.parse(xhr.responseText));
-        else reject(new Error(`Upload failed: ${xhr.responseText}`));
-      };
-      xhr.onerror = () => reject(new Error('Network error'));
-      const formData = new FormData();
-      formData.append('file', { uri: compressed.uri, type: 'image/jpeg', name: filename });
-      xhr.send(formData);
-    });
+      const result = await new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', uploadUrl);
+        xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+        xhr.onload = () => {
+          if (xhr.status === 200) resolve(JSON.parse(xhr.responseText));
+          else reject(new Error(`Upload failed: ${xhr.responseText}`));
+        };
+        xhr.onerror = () => reject(new Error('Network error'));
+        const formData = new FormData();
+        formData.append('file', { uri: compressed.uri, type: 'image/jpeg', name: filename });
+        xhr.send(formData);
+      });
 
-    const downloadUrl = `https://firebasestorage.googleapis.com/v0/b/${BUCKET}/o/${encodedPath}?alt=media&token=${result.downloadTokens}`;
-    urls.push(downloadUrl);
+      const downloadUrl = `https://firebasestorage.googleapis.com/v0/b/${BUCKET}/o/${encodedPath}?alt=media&token=${result.downloadTokens}`;
+      urls.push(downloadUrl);
 
-    // Her upload arasında bekle
-    await new Promise(res => setTimeout(res, 800));
-  }
-  return urls;
-};
+      await new Promise(res => setTimeout(res, 800));
+    }
+    return urls;
+  };
 
   const handleStart = async () => {
     setSaving(true);
@@ -161,100 +160,115 @@ export default function EngineerJobDetail({ navigation, route }) {
         <View style={{ width: 60 }} />
       </View>
 
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        <View style={[styles.statusBanner, { backgroundColor: sc.bg, borderColor: sc.border }]}>
-          <Text style={[styles.statusLabel, { color: sc.color }]}>{sc.label}</Text>
-        </View>
-
-        {isRevision && (
-          <View style={styles.revisionCard}>
-            <Text style={styles.revisionTitle}>Manager requested a revision</Text>
-            <Text style={styles.revisionBody}>Please add more photos or update your notes, then resubmit.</Text>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={0}
+      >
+        <ScrollView
+          contentContainerStyle={styles.content}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={[styles.statusBanner, { backgroundColor: sc.bg, borderColor: sc.border }]}>
+            <Text style={[styles.statusLabel, { color: sc.color }]}>{sc.label}</Text>
           </View>
-        )}
 
-        <View style={styles.card}>
-          <Text style={styles.jobTitle}>{job.title}</Text>
-          <View style={[styles.catBadge, { backgroundColor: cc.bg }]}>
-     
-            <Text style={[styles.catText, { color: cc.color }]}>{job.category}</Text>
-          </View>
-          {job.description ? <Text style={styles.description}>{job.description}</Text> : null}
-        </View>
-
-        <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Details</Text>
-          <Row label="Address"   value={job.address || '—'} />
-          <Row label="Scheduled" value={job.scheduledDate || 'Not set'} />
-          <Row label="Priority"  value={job.priority ? job.priority.charAt(0).toUpperCase() + job.priority.slice(1) : '—'} />
-        </View>
-
-        {job.photos && job.photos.length > 0 && (
-          <View style={styles.card}>
-            <Text style={styles.sectionTitle}>Previously Submitted Photos</Text>
-            <View style={styles.photoGrid}>
-              {job.photos.map((uri, i) => <Image key={i} source={{ uri }} style={styles.photo} />)}
+          {isRevision && (
+            <View style={styles.revisionCard}>
+              <Text style={styles.revisionTitle}>Manager requested a revision</Text>
+              <Text style={styles.revisionBody}>Please add more photos or update your notes, then resubmit.</Text>
             </View>
-          </View>
-        )}
-
-        {canWork && (
-          <View style={styles.card}>
-            <Text style={styles.sectionTitle}>{isRevision ? 'Add More Photos' : 'Submit Your Work'}</Text>
-            <View style={styles.photoGrid}>
-              {photos.map((uri, i) => (
-                <TouchableOpacity key={i} onLongPress={() => removePhoto(i)} activeOpacity={0.8}>
-                  <Image source={{ uri }} style={styles.photo} />
-                  <View style={styles.removeOverlay}><Text style={styles.removeX}>✕</Text></View>
-                </TouchableOpacity>
-              ))}
-              <TouchableOpacity style={styles.addPhotoBtn} onPress={pickPhoto}>
-                <Text style={styles.addPhotoIcon}>📷</Text>
-                <Text style={styles.addPhotoText}>Add Photo</Text>
-              </TouchableOpacity>
-            </View>
-            <Text style={styles.photoHint}>Long press a photo to remove it</Text>
-            <Text style={[styles.sectionTitle, { marginTop: 16 }]}>Notes (optional)</Text>
-            <TextInput
-              style={styles.noteInput} value={note} onChangeText={setNote}
-              placeholder="Any notes for the manager..." placeholderTextColor={Colors.textMuted}
-              multiline numberOfLines={3}
-            />
-          </View>
-        )}
-
-        <View style={styles.ctaArea}>
-          {saving ? (
-            <ActivityIndicator color={Colors.primary} style={{ marginVertical: 20 }} />
-          ) : (
-            <>
-              {isPending && (
-                <TouchableOpacity style={styles.startBtn} onPress={handleStart}>
-                  <Text style={styles.ctaText}> Start Job</Text>
-                </TouchableOpacity>
-              )}
-              {canWork && (
-                <TouchableOpacity
-                  style={[styles.submitBtn, photos.length === 0 && styles.btnDisabled]}
-                  onPress={handleSubmit} disabled={photos.length === 0}
-                >
-                  <Text style={styles.ctaText}>Submit for Approval ({photos.length} photo{photos.length !== 1 ? 's' : ''})</Text>
-                </TouchableOpacity>
-              )}
-              {isSubmitted && (
-                <View style={styles.submittedBox}>
-                  <Text style={styles.submittedText}>✅ Submitted — waiting for manager review</Text>
-                </View>
-              )}
-              {isDone && (
-                <View style={[styles.submittedBox, { backgroundColor: Colors.completedBg }]}>
-                  <Text style={[styles.submittedText, { color: Colors.completed }]}>Job Completed & Approved!</Text>
-                </View>
-              )}
-            </>
           )}
-        </View>
-      </ScrollView>
+
+          <View style={styles.card}>
+            <Text style={styles.jobTitle}>{job.title}</Text>
+            <View style={[styles.catBadge, { backgroundColor: cc.bg }]}>
+              <Text style={[styles.catText, { color: cc.color }]}>{job.category}</Text>
+            </View>
+            {job.description ? <Text style={styles.description}>{job.description}</Text> : null}
+          </View>
+
+          <View style={styles.card}>
+            <Text style={styles.sectionTitle}>Details</Text>
+            <Row label="Address"   value={job.address || '—'} />
+            <Row label="Scheduled" value={job.scheduledDate || 'Not set'} />
+            <Row label="Priority"  value={job.priority ? job.priority.charAt(0).toUpperCase() + job.priority.slice(1) : '—'} />
+          </View>
+
+          {job.photos && job.photos.length > 0 && (
+            <View style={styles.card}>
+              <Text style={styles.sectionTitle}>Previously Submitted Photos</Text>
+              <View style={styles.photoGrid}>
+                {job.photos.map((uri, i) => <Image key={i} source={{ uri }} style={styles.photo} />)}
+              </View>
+            </View>
+          )}
+
+          {canWork && (
+            <View style={styles.card}>
+              <Text style={styles.sectionTitle}>{isRevision ? 'Add More Photos' : 'Submit Your Work'}</Text>
+              <View style={styles.photoGrid}>
+                {photos.map((uri, i) => (
+                  <TouchableOpacity key={i} onLongPress={() => removePhoto(i)} activeOpacity={0.8}>
+                    <Image source={{ uri }} style={styles.photo} />
+                    <View style={styles.removeOverlay}><Text style={styles.removeX}>✕</Text></View>
+                  </TouchableOpacity>
+                ))}
+                <TouchableOpacity style={styles.addPhotoBtn} onPress={pickPhoto}>
+                  <Text style={styles.addPhotoIcon}>📷</Text>
+                  <Text style={styles.addPhotoText}>Add Photo</Text>
+                </TouchableOpacity>
+              </View>
+              <Text style={styles.photoHint}>Long press a photo to remove it</Text>
+              <Text style={[styles.sectionTitle, { marginTop: 16 }]}>Notes (optional)</Text>
+              <TextInput
+                style={styles.noteInput}
+                value={note}
+                onChangeText={setNote}
+                placeholder="Any notes for the manager..."
+                placeholderTextColor={Colors.textMuted}
+                multiline
+                numberOfLines={4}
+                textAlignVertical="top"
+                scrollEnabled={false}
+              />
+            </View>
+          )}
+
+          <View style={styles.ctaArea}>
+            {saving ? (
+              <ActivityIndicator color={Colors.primary} style={{ marginVertical: 20 }} />
+            ) : (
+              <>
+                {isPending && (
+                  <TouchableOpacity style={styles.startBtn} onPress={handleStart}>
+                    <Text style={styles.ctaText}>Start Job</Text>
+                  </TouchableOpacity>
+                )}
+                {canWork && (
+                  <TouchableOpacity
+                    style={[styles.submitBtn, photos.length === 0 && styles.btnDisabled]}
+                    onPress={handleSubmit} disabled={photos.length === 0}
+                  >
+                    <Text style={styles.ctaText}>Submit for Approval ({photos.length} photo{photos.length !== 1 ? 's' : ''})</Text>
+                  </TouchableOpacity>
+                )}
+                {isSubmitted && (
+                  <View style={styles.submittedBox}>
+                    <Text style={styles.submittedText}>Submitted — waiting for manager review</Text>
+                  </View>
+                )}
+                {isDone && (
+                  <View style={[styles.submittedBox, { backgroundColor: Colors.completedBg }]}>
+                    <Text style={[styles.submittedText, { color: Colors.completed }]}>Job Completed & Approved!</Text>
+                  </View>
+                )}
+              </>
+            )}
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -267,6 +281,7 @@ function Row({ label, value }) {
     </View>
   );
 }
+
 const rowStyles = StyleSheet.create({
   row:   { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: Colors.divider },
   label: { fontSize: 13, color: Colors.textMuted, flex: 1 },
@@ -274,36 +289,53 @@ const rowStyles = StyleSheet.create({
 });
 
 const styles = StyleSheet.create({
-  safe:   { flex: 1, backgroundColor: Colors.background },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: Colors.primary, paddingHorizontal: 16, paddingVertical: 14 },
-  backBtn: { width: 60 }, backText: { color: Colors.accentLight, fontSize: 14, fontWeight: '600' },
+  safe:        { flex: 1, backgroundColor: Colors.background },
+  center:      { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  header:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: Colors.primary, paddingHorizontal: 16, paddingVertical: 14 },
+  backBtn:     { width: 60 },
+  backText:    { color: Colors.accentLight, fontSize: 14, fontWeight: '600' },
   headerTitle: { fontSize: 17, fontWeight: '700', color: Colors.white },
+
   statusBanner: { marginHorizontal: 16, marginTop: 14, borderRadius: 10, paddingVertical: 12, alignItems: 'center', borderWidth: 1 },
-  statusLabel: { fontSize: 15, fontWeight: '700' },
-  revisionCard: { marginHorizontal: 16, marginTop: 10, backgroundColor: Colors.needsRevisionBg, borderRadius: 12, padding: 14, borderWidth: 1, borderColor: Colors.needsRevisionBorder },
+  statusLabel:  { fontSize: 15, fontWeight: '700' },
+
+  revisionCard:  { marginHorizontal: 16, marginTop: 10, backgroundColor: Colors.needsRevisionBg, borderRadius: 12, padding: 14, borderWidth: 1, borderColor: Colors.needsRevisionBorder },
   revisionTitle: { fontSize: 14, fontWeight: '700', color: Colors.needsRevision, marginBottom: 4 },
   revisionBody:  { fontSize: 13, color: Colors.needsRevision },
-  card: { backgroundColor: Colors.surface, borderRadius: 14, padding: 16, marginHorizontal: 16, marginTop: 12, borderWidth: 1, borderColor: Colors.border },
-  jobTitle: { fontSize: 20, fontWeight: '800', color: Colors.textPrimary, marginBottom: 10 },
-  catBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20, alignSelf: 'flex-start', marginBottom: 10 },
-  catIcon: { fontSize: 12, marginRight: 4 }, catText: { fontSize: 12, fontWeight: '700' },
+
+  card:        { backgroundColor: Colors.surface, borderRadius: 14, padding: 16, marginHorizontal: 16, marginTop: 12, borderWidth: 1, borderColor: Colors.border },
+  jobTitle:    { fontSize: 20, fontWeight: '800', color: Colors.textPrimary, marginBottom: 10 },
+  catBadge:    { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20, alignSelf: 'flex-start', marginBottom: 10 },
+  catText:     { fontSize: 12, fontWeight: '700' },
   description: { fontSize: 14, color: Colors.textSecondary, lineHeight: 22, marginTop: 6 },
+
   sectionTitle: { fontSize: 14, fontWeight: '700', color: Colors.textPrimary, marginBottom: 10 },
-  photoGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 6 },
-  photo: { width: 90, height: 90, borderRadius: 10 },
+  photoGrid:    { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 6 },
+  photo:        { width: 90, height: 90, borderRadius: 10 },
+
   removeOverlay: { position: 'absolute', top: 0, right: 0, width: 22, height: 22, borderRadius: 11, backgroundColor: Colors.error, alignItems: 'center', justifyContent: 'center' },
-  removeX: { color: '#fff', fontSize: 10, fontWeight: '700' },
-  addPhotoBtn: { width: 90, height: 90, borderRadius: 10, borderWidth: 2, borderColor: Colors.border, borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.surfaceAlt },
-  addPhotoIcon: { fontSize: 22 }, addPhotoText: { fontSize: 10, color: Colors.textMuted, fontWeight: '600', marginTop: 2 },
-  photoHint: { fontSize: 11, color: Colors.textMuted, marginTop: 4 },
-  noteInput: { borderWidth: 1, borderColor: Colors.border, borderRadius: 10, padding: 12, fontSize: 14, color: Colors.textPrimary, backgroundColor: Colors.background, height: 90, textAlignVertical: 'top' },
-  ctaArea: { marginHorizontal: 16, marginTop: 16, marginBottom: 40, gap: 12 },
-  startBtn: { backgroundColor: Colors.inProgress, borderRadius: 14, height: 54, alignItems: 'center', justifyContent: 'center', borderBottomWidth: 3, borderBottomColor: '#0F4870' },
-  submitBtn: { backgroundColor: Colors.primary, borderRadius: 14, height: 54, alignItems: 'center', justifyContent: 'center', borderBottomWidth: 3, borderBottomColor: Colors.accent },
-  btnDisabled: { opacity: 0.4 }, ctaText: { color: Colors.white, fontSize: 15, fontWeight: '700' },
-  submittedBox: { backgroundColor: Colors.pendingApprovalBg, borderRadius: 12, padding: 16, alignItems: 'center', borderWidth: 1, borderColor: Colors.pendingApprovalBorder },
+  removeX:       { color: '#fff', fontSize: 10, fontWeight: '700' },
+
+  addPhotoBtn:  { width: 90, height: 90, borderRadius: 10, borderWidth: 2, borderColor: Colors.border, borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.surfaceAlt },
+  addPhotoIcon: { fontSize: 22 },
+  addPhotoText: { fontSize: 10, color: Colors.textMuted, fontWeight: '600', marginTop: 2 },
+  photoHint:    { fontSize: 11, color: Colors.textMuted, marginTop: 4 },
+
+  noteInput: {
+    borderWidth: 1, borderColor: Colors.border, borderRadius: 10,
+    padding: 12, fontSize: 14, color: Colors.textPrimary,
+    backgroundColor: Colors.background, minHeight: 100,
+    textAlignVertical: 'top',
+  },
+
+  ctaArea:    { marginHorizontal: 16, marginTop: 16, marginBottom: 60, gap: 12 },
+  startBtn:   { backgroundColor: Colors.inProgress, borderRadius: 14, height: 54, alignItems: 'center', justifyContent: 'center', borderBottomWidth: 3, borderBottomColor: '#0F4870' },
+  submitBtn:  { backgroundColor: Colors.primary, borderRadius: 14, height: 54, alignItems: 'center', justifyContent: 'center', borderBottomWidth: 3, borderBottomColor: Colors.accent },
+  btnDisabled: { opacity: 0.4 },
+  ctaText:    { color: Colors.white, fontSize: 15, fontWeight: '700' },
+
+  submittedBox:  { backgroundColor: Colors.pendingApprovalBg, borderRadius: 12, padding: 16, alignItems: 'center', borderWidth: 1, borderColor: Colors.pendingApprovalBorder },
   submittedText: { fontSize: 15, fontWeight: '700', color: Colors.pendingApproval },
-  notFound: { fontSize: 16, color: Colors.textMuted },
-  content:  { paddingBottom: 20 },
+  notFound:      { fontSize: 16, color: Colors.textMuted },
+  content:       { paddingBottom: 20 },
 });

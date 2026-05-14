@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity,
   StyleSheet, ActivityIndicator,
@@ -12,10 +12,10 @@ import { Colors, StatusConfig, CategoryConfig } from '../../constants/theme';
 
 export default function EngineerDashboard({ navigation, route }) {
   const { userName } = route.params || {};
-  const [jobs, setJobs]           = useState([]);
-  const [loading, setLoading]     = useState(true);
+  const [jobs, setJobs]             = useState([]);
+  const [loading, setLoading]       = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [filter, setFilter]       = useState('active');
+  const [filter, setFilter]         = useState('active');
 
   const uid = auth.currentUser?.uid;
 
@@ -33,6 +33,11 @@ export default function EngineerDashboard({ navigation, route }) {
     });
     return unsub;
   }, [uid]);
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    setTimeout(() => setRefreshing(false), 2000);
+  }, []);
 
   const ACTIVE_STATUSES = ['pending', 'in_progress', 'needs_revision'];
 
@@ -116,9 +121,9 @@ export default function EngineerDashboard({ navigation, route }) {
       {/* Filter tabs */}
       <View style={styles.tabs}>
         {[
-          { key: 'active',   label: 'Active',    count: activeCt    },
-          { key: 'completed',label: 'Completed', count: completedCt },
-          { key: 'all',      label: 'All',       count: jobs.length },
+          { key: 'active',    label: 'Active',    count: activeCt    },
+          { key: 'completed', label: 'Completed', count: completedCt },
+          { key: 'all',       label: 'All',       count: jobs.length },
         ].map(tab => (
           <TouchableOpacity
             key={tab.key}
@@ -142,7 +147,12 @@ export default function EngineerDashboard({ navigation, route }) {
           renderItem={renderJob}
           contentContainerStyle={styles.listContent}
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={() => setRefreshing(true)} tintColor={Colors.primary} />
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={Colors.primary}
+              colors={[Colors.primary]}
+            />
           }
           ListEmptyComponent={
             <View style={styles.empty}>
@@ -229,7 +239,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center',
     paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20,
   },
-  catIcon: { fontSize: 12, marginRight: 4 },
   catText: { fontSize: 11, fontWeight: '700' },
 
   statusBadge: {
